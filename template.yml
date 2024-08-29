@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: URL Shortener
+
+Parameters:
+  CodeBucket:
+    Type: String
+    Default: "aleksandr-lambda-build"
+  ApplicationName:
+    Type: String
+    Default: url-shortener
+
+Resources:
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: dev
+      Name: !Ref ApplicationName
+
+  ApiLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri:
+        Bucket: aleksandr-lambda-build
+        Key: url-shortener-1.0.jar
+      Handler: com.aleksandr.shortener.infrastructure.lambda.ApiLambdaHandler::handleRequest
+      FunctionName: !Join [!Ref ApplicationName, 'API']
+      Architectures:
+        - x86_64
+      Runtime: java21
+      Timeout: 5
+      MemorySize: 256
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - apigateway:POST
+                - apigateway:GET
+              Resource:
+                - '*'
+      Events:
+        HealthCheck:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /v1/health
+            Method: get
+        ShortenURL:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /v1/shorten
+            Method: post
+        GetLongURL:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /v1/{shortUrl}
+            Method: get
+
+Outputs:
+  ApiGateway:
+    Description: API Gateway ARN
+    Value: !GetAtt ApiGateway.Arn
+  ApiLambdaFunction:
+    Description: API Lambda ARN
+    Value: !GetAtt ApiLambdaFunction.Arn
